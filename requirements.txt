@@ -1,0 +1,5 @@
+anthropic>=1.4.0,<2
+slack-bolt>=1.30.0,<2
+slack-sdk>=3.44.0,<4
+notion-client>=3.1.0,<4
+python-dotenv>=1.2.0,<2
