@@ -133,3 +133,23 @@ guide/cs_guide.md   노션 가이드 스냅샷 (폴백)
 slack_manifest.yaml Slack 앱 매니페스트
 tests/              파서·후처리 단위 테스트
 ```
+
+## 서논술형 시스템 프로파일 (#clipo-ai-서논술형시스템-cs)
+
+**서논술형 시스템**은 경기도교육청 하이러닝(hiai.goe.go.kr) 에 탑재된 클리포 서논술형(서술형·논술형) 평가 엔진입니다. 문의는 clipo.ai 백오피스가 아니라 별도의 슬랙 채널 `#clipo-ai-서논술형시스템-cs` 에 실시간으로 접수됩니다. 권한·톤·의사결정 구조가 clipo.ai 와 달라, 이 프로파일은 기존 `#clipo-cs` 봇과 **별도 인스턴스**로 돌립니다. `.env.seononsul.example` 을 `.env` 로 복사해 값을 채운 뒤 실행하세요.
+
+같은 코드베이스이지만 아래 3가지 RAG/기능이 추가되어 있습니다. **모두 환경 변수로 켜지며 기본은 off** 이므로, 값을 넣지 않으면 기존 `#clipo-cs` 동작과 완전히 동일합니다.
+
+1. **매뉴얼 RAG** — `manuals/` 폴더의 `.md`/`.markdown`/`.txt` 문서를 **제품 사실의 1차 근거**로 초안 생성 시 함께 참조합니다. 폴더가 비어 있으면 자동으로 꺼집니다. `MANUALS_DIR` 로 다른 폴더를 지정할 수 있습니다.
+2. **관련 내부 채널 참조** — 이름에 `clipo-ai-서논술형시스템` 이 들어간 회사 채널의 최근 논의(로드맵·이슈 맥락)를 컨텍스트로 참조합니다. `REFERENCE_CHANNEL_KEYWORD` 로 키워드를, 또는 `REFERENCE_CHANNEL_IDS` 로 채널 ID를 직접 지정합니다. 봇이 해당 채널들에 초대되어 있어야 읽을 수 있습니다. 내부 논의 문구는 사실 파악·이관 판단에만 쓰고 선생님께 보내는 초안에는 그대로 노출하지 않습니다.
+3. **담당 조직 자동 태깅** — 초안의 `[에스컬레이션]` 라벨(CS담당/개발팀/AI조직/기획)을 `stakeholders.json` 에 정의한 Slack 멘션으로 자동 치환해, 스레드에서 개발팀·AI조직 등을 실제로 태그합니다. 파일이 없으면 태깅은 꺼집니다.
+
+서논술형 전용 가이드는 `guide/seononsul_guide.md` 입니다. 이 가이드는 **응대 방식·분류·이관 규칙(정책)** 만 정의하며, 제품 사실(과목 개설 현황·서비스 시점·채점 방식·지원 기능)은 매뉴얼·과거 답변·내부 채널 근거로만 채웁니다. 근거가 없으면 단정하지 않고 `[크로스체크 필요]`/`[에스컬레이션]` 으로 넘깁니다.
+
+### Go-live 체크리스트
+
+1. `.env.seononsul.example` 을 `.env` 로 복사하고 `SLACK_CHANNEL_ID` 에 서논술형 채널(`#clipo-ai-서논술형시스템-cs`) ID를 넣습니다.
+2. `stakeholders.example.json` 을 `stakeholders.json` 으로 복사하고 개발팀/AI조직/기획/CS담당의 실제 Slack 멘션(사용자 `<@U…>` 또는 사용자그룹 `<!subteam^S…>`)을 채웁니다. (`stakeholders.json` 은 `.gitignore` 되어 커밋되지 않습니다.)
+3. `manuals/` 에 서논술형 매뉴얼(`.md`/`.txt`)을 넣습니다.
+4. 봇을 `#clipo-ai-서논술형시스템-cs` 와 참조 대상 채널들에 `/invite` 합니다.
+5. `DRY_RUN=true` 로 `python -m clipo_cs_bot draft --ts <문의ts>` 를 돌려 초안 품질·태깅을 점검한 뒤, 문제없으면 `DRY_RUN=false` 로 바꾸고 `python -m clipo_cs_bot run` 으로 운영합니다.

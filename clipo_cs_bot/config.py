@@ -60,6 +60,15 @@ class Settings:
     max_similar_examples: int
     poll_interval_seconds: int
 
+    # 서논술형 프로파일 추가 기능 (모두 기본 off — 기존 #clipo-cs 동작 불변)
+    manuals_dir: Path
+    reference_channel_keyword: str
+    reference_channel_ids: tuple[str, ...]
+    reference_history_days: int
+    reference_per_channel: int
+    reference_max_channels: int
+    stakeholder_map_path: Path
+
     @property
     def guide_page_id(self) -> str:
         """URL 또는 UUID 어느 쪽을 넣어도 32자리 hex ID로 정규화한다."""
@@ -89,4 +98,11 @@ def load_settings(*, require_slack: bool = True, require_claude: bool = True) ->
         max_prior_inquiries=int(_env("MAX_PRIOR_INQUIRIES", "3")),
         max_similar_examples=int(_env("MAX_SIMILAR_EXAMPLES", "3")),
         poll_interval_seconds=int(_env("POLL_INTERVAL_SECONDS", "60")),
+        manuals_dir=Path(_env("MANUALS_DIR", str(PROJECT_DIR / "manuals"))),
+        reference_channel_keyword=_env("REFERENCE_CHANNEL_KEYWORD", ""),
+        reference_channel_ids=tuple(x.strip() for x in _env("REFERENCE_CHANNEL_IDS", "").split(",") if x.strip()),
+        reference_history_days=int(_env("REFERENCE_HISTORY_DAYS", "30")),
+        reference_per_channel=int(_env("REFERENCE_PER_CHANNEL", "15")),
+        reference_max_channels=int(_env("REFERENCE_MAX_CHANNELS", "6")),
+        stakeholder_map_path=Path(_env("STAKEHOLDER_MAP_PATH", str(PROJECT_DIR / "stakeholders.json"))),
     )

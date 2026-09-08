@@ -18,7 +18,7 @@ from typing import Iterable
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
-from .parser import Inquiry, ThreadRecord, parse_answer_reply, parse_inquiry, question_id_from_url
+from .parser import Inquiry, ThreadRecord, clean_slack_text, parse_answer_reply, parse_inquiry, question_id_from_url
 
 log = logging.getLogger(__name__)
 
@@ -28,6 +28,7 @@ class DraftContext:
     prior_by_teacher: list[ThreadRecord] = field(default_factory=list)
     similar_by_category: list[ThreadRecord] = field(default_factory=list)
     original_thread: ThreadRecord | None = None  # 재질문일 때
+    reference_notes: list[str] = field(default_factory=list)
 
     def describe(self) -> str:
         sections = []
@@ -39,6 +40,11 @@ class DraftContext:
         if self.similar_by_category:
             items = "\n\n---\n\n".join(r.describe() for r in self.similar_by_category)
             sections.append("## 같은 유형의 최근 모범 답변 사례 (톤·형식 참고)\n" + items)
+        if self.reference_notes:
+            sections.append(
+                "## 관련 내부 채널 최근 논의 (로드맵·이슈 맥락 — 선생님께 그대로 노출 금지)\n"
+                + "\n\n".join(self.reference_notes)
+            )
         return "\n\n".join(sections) if sections else "(참고할 과거 이력 없음)"
 
 
@@ -172,4 +178,75 @@ def find_inquiry_by_ts(history: ChannelHistory, ts: str) -> Inquiry | None:
     return None
 
 
-__all__ = ["ChannelHistory", "DraftContext", "build_context", "find_inquiry_by_ts", "question_id_from_url"]
+def filter_channels_by_keyword(channels: list[dict], keyword: str) -> list[tuple[str, str]]:
+    """conversations.list 결과에서 이름에 keyword 가 들어가고 봇이 속한 채널만 (id, name) 으로 추린다."""
+    out: list[tuple[str, str]] = []
+    for c in channels:
+        name = c.get("name", "")
+        if keyword and keyword in name and c.get("is_member"):
+            out.append((c.get("id"), name))
+    return out
+
+
+def discover_channels(client: WebClient, keyword: str, *, max_pages: int = 5) -> list[tuple[str, str]]:
+    found: list[tuple[str, str]] = []
+    cursor = None
+    for _ in range(max_pages):
+        try:
+            resp = client.conversations_list(
+                types="public_channel,private_channel", limit=200, cursor=cursor, exclude_archived=True
+            )
+        except SlackApiError as e:
+            log.warning("conversations.list 실패: %s", e.response.get("error"))
+            break
+        found.extend(filter_channels_by_keyword(resp.get("channels", []), keyword))
+        cursor = resp.get("response_metadata", {}).get("next_cursor")
+        if not cursor:
+            break
+    return found
+
+
+def collect_reference_context(
+    client: WebClient,
+    *,
+    keyword: str = "",
+    explicit_ids: list[str] | None = None,
+    exclude_channel_id: str | None = None,
+    per_channel: int = 15,
+    max_channels: int = 6,
+    days: int = 30,
+) -> list[str]:
+    """이름에 keyword 가 들어간(또는 명시된) 내부 채널의 최근 메시지를 컨텍스트 노트로 모은다."""
+    channels: list[tuple[str, str]] = []
+    if explicit_ids:
+        channels = [(cid, cid) for cid in explicit_ids]
+    elif keyword:
+        channels = discover_channels(client, keyword)
+    notes: list[str] = []
+    oldest = str(time.time() - days * 86400)
+    for cid, name in channels[:max_channels]:
+        if exclude_channel_id and cid == exclude_channel_id:
+            continue
+        try:
+            resp = client.conversations_history(channel=cid, oldest=oldest, limit=per_channel)
+        except SlackApiError as e:
+            log.warning("참조 채널 %s 이력 실패: %s", name, e.response.get("error"))
+            continue
+        texts = [clean_slack_text(m.get("text", "")) for m in reversed(resp.get("messages", []))]
+        texts = [t for t in texts if t]
+        if texts:
+            joined = "\n".join(f"- {t}" for t in texts[-per_channel:])
+            notes.append(f"### #{name}\n{joined}")
+    return notes
+
+
+__all__ = [
+    "ChannelHistory",
+    "DraftContext",
+    "build_context",
+    "find_inquiry_by_ts",
+    "question_id_from_url",
+    "filter_channels_by_keyword",
+    "discover_channels",
+    "collect_reference_context",
+]

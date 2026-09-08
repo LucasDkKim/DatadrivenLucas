@@ -5,3 +5,5 @@ __pycache__/
 .venv/
 venv/
 .pytest_cache/
+# 내부 담당자 Slack ID (커밋 금지) — stakeholders.example.json 만 버전관리
+stakeholders.json

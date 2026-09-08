@@ -1,0 +1,7 @@
+{
+  "_comment": "실제 파일은 stakeholders.json 으로 저장하세요(.gitignore 됨). 각 조직 라벨에 Slack 멘션 토큰을 넣습니다. 사용자: <@U01ABCDEF>, 사용자그룹(usergroup): <!subteam^S01ABCDEF|@dev>. 가이드의 [에스컬레이션] 라벨(CS담당/개발팀/AI조직/기획)과 키가 정확히 일치해야 자동 태깅됩니다.",
+  "CS담당": ["<@U000000CS>"],
+  "개발팀": ["<!subteam^S00000DEV|@dev>"],
+  "AI조직": ["<!subteam^S000000AI|@ai>"],
+  "기획": ["<@U0000PLAN>"]
+}

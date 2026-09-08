@@ -19,10 +19,12 @@ from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
 from .config import Settings
-from .context import ChannelHistory, build_context, find_inquiry_by_ts
+from .context import ChannelHistory, build_context, collect_reference_context, find_inquiry_by_ts
 from .drafter import Draft, Drafter
 from .guide import GuideStore
+from .manuals import load_manuals
 from .parser import Inquiry, parse_inquiry
+from .stakeholders import load_stakeholder_map, tags_for_escalation
 
 log = logging.getLogger(__name__)
 
@@ -61,7 +63,7 @@ class ProcessedStore:
             self.path.write_text(json.dumps(self._items, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
-def format_draft_message(inquiry: Inquiry, draft: Draft) -> str:
+def format_draft_message(inquiry: Inquiry, draft: Draft, stakeholder_map: dict[str, list[str]] | None = None) -> str:
     """Slack mrkdwn 으로 초안을 꾸민다. 초안 본문은 복사하기 쉽게 코드 블록으로."""
     lines = [DRAFT_HEADER]
     if inquiry.url:
@@ -78,6 +80,10 @@ def format_draft_message(inquiry: Inquiry, draft: Draft) -> str:
         lines.append(sec.get("크로스체크 필요", "숫자·금액 없음 — 해당 없음"))
         lines.append("*[에스컬레이션]*")
         lines.append(sec.get("에스컬레이션", "정보성 답변 — 즉시 회신 가능"))
+        if stakeholder_map:
+            mentions = tags_for_escalation(sec.get("에스컬레이션", ""), stakeholder_map)
+            if mentions:
+                lines.append("🔔 *담당 조직 태그:* " + " ".join(mentions))
     else:
         lines.append(draft.raw)
     if draft.warnings:
@@ -95,6 +101,7 @@ class InquiryProcessor:
         self.guide = GuideStore(settings)
         self.drafter = Drafter(settings)
         self.store = ProcessedStore(settings.state_file)
+        self.stakeholders = load_stakeholder_map(settings.stakeholder_map_path)
         self.bot_user_id: str | None = None
         self._busy = threading.Lock()
         try:
@@ -136,9 +143,25 @@ class InquiryProcessor:
             max_prior=self.settings.max_prior_inquiries,
             max_similar=self.settings.max_similar_examples,
         )
+        if self.settings.reference_channel_keyword or self.settings.reference_channel_ids:
+            try:
+                context.reference_notes = collect_reference_context(
+                    self.client,
+                    keyword=self.settings.reference_channel_keyword,
+                    explicit_ids=list(self.settings.reference_channel_ids),
+                    exclude_channel_id=self.settings.slack_channel_id,
+                    per_channel=self.settings.reference_per_channel,
+                    max_channels=self.settings.reference_max_channels,
+                    days=self.settings.reference_history_days,
+                )
+            except Exception:  # noqa: BLE001 - 참조 채널 수집 실패는 초안 생성을 막지 않는다
+                log.exception("참조 채널 컨텍스트 수집 실패")
         guide = self.guide.get()
+        manuals = load_manuals(self.settings.manuals_dir)
+        if manuals:
+            guide = guide + "\n\n# 📎 업로드된 매뉴얼 (제품 사실 근거)\n\n" + manuals
         draft = self.drafter.draft(inquiry, context, guide)
-        return draft, format_draft_message(inquiry, draft)
+        return draft, format_draft_message(inquiry, draft, stakeholder_map=self.stakeholders)
 
     def handle(self, inquiry: Inquiry, *, force: bool = False) -> bool:
         """초안을 만들어 스레드에 올린다. 올렸으면 True."""
