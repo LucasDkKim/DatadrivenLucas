@@ -1,0 +1,29 @@
+# Slack 앱 매니페스트 (서논술형 CS 도우미).
+# https://api.slack.com/apps > Create New App > From a manifest 에 붙여넣으면
+# 필요한 스코프·이벤트·Socket Mode 가 한 번에 설정된다.
+display_information:
+  name: 서논술형 CS 도우미
+  description: "서논술형 CS 채널의 1:1 문의에 1차 응대 초안을 스레드로 올립니다 (검수 전 발송 금지)"
+  background_color: "#1f3a5f"
+features:
+  bot_user:
+    display_name: 서논술형 CS 도우미
+    always_online: true
+oauth_config:
+  scopes:
+    bot:
+      - channels:history   # 공개 채널 메시지 읽기 (이벤트 + 이력 조회)
+      - channels:read
+      - groups:history     # 비공개 채널일 경우
+      - groups:read
+      - chat:write         # 스레드 댓글
+settings:
+  event_subscriptions:
+    bot_events:
+      - message.channels
+      - message.groups
+  interactivity:
+    is_enabled: false
+  org_deploy_enabled: false
+  socket_mode_enabled: true
+  token_rotation_enabled: false
