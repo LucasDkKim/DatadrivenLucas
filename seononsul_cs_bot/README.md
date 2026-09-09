@@ -70,7 +70,9 @@ cp .env.example .env   # 값 채우기
 
 ### 2. Notion 가이드 (선택)
 
-`NOTION_TOKEN` + `NOTION_PAGE_ID` 를 넣고 가이드 페이지를 통합에 공유합니다. **`NOTION_PAGE_ID` 가 비어 있으면**(현재 기본값) Notion 을 건너뛰고 저장소 스냅샷 `guide/seononsul_guide.md` 를 사용합니다. 새 RAG 페이지가 준비되면 그 페이지 ID 를 채우세요.
+RAG 권위본은 Notion 페이지 **[🎯 서·논술형(채움AI) CS 1차 응대 RAG 참조 문서](https://app.notion.com/p/3d617e5c8cf1818cbe2bd59363071121)** 입니다. 이 페이지 ID(`3d617e5c8cf1818cbe2bd59363071121`)가 `config.py` 의 `NOTION_PAGE_ID` 기본값으로 설정되어 있습니다(환경 변수로 override 가능).
+
+`NOTION_TOKEN` 을 넣고 위 페이지를 통합(Integration)에 공유하면 런타임이 Notion 최신본을 우선 사용하고, 조회 실패 시 저장소 스냅샷 `guide/seononsul_guide.md` 로 폴백합니다. **`NOTION_TOKEN` 이 없으면** 페이지 ID 가 설정돼 있어도 Notion 을 건너뛰고 곧장 스냅샷을 사용합니다. 스냅샷은 이 Notion 권위본과 동기화된 폴백본입니다.
 
 ```bash
 python -m seononsul_cs_bot guide   # 가이드 출처/내용 확인

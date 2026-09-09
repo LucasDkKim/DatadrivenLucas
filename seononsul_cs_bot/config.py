@@ -82,8 +82,9 @@ def load_settings(*, require_slack: bool = True, require_claude: bool = True) ->
         claude_max_tokens=int(_env("CLAUDE_MAX_TOKENS", "16000")),
         claude_fallbacks=_env_bool("CLAUDE_FALLBACKS", True),
         notion_token=_env("NOTION_TOKEN"),
-        # 새 Notion RAG 페이지 id 는 이후 단계에서 채운다. 비어 있으면 스냅샷으로 바로 폴백.
-        notion_page_id=_env("NOTION_PAGE_ID", ""),
+        # 서논술형 RAG 권위본 Notion 페이지 id (기본값). 환경 변수 NOTION_PAGE_ID 로 override 가능.
+        # https://app.notion.com/p/3d617e5c8cf1818cbe2bd59363071121
+        notion_page_id=_env("NOTION_PAGE_ID", "3d617e5c8cf1818cbe2bd59363071121"),
         guide_refresh_minutes=int(_env("GUIDE_REFRESH_MINUTES", "60")),
         guide_fallback_path=Path(
             _env("GUIDE_FALLBACK_PATH", str(PACKAGE_DIR / "guide" / "seononsul_guide.md"))
